@@ -218,8 +218,11 @@ A `/check` result for a watch whose price went above 0.08 and came back (abridge
 
 Replit's production Postgres is billed per active hour, and the 15 second sampler keeps
 it active around the clock (about $3.84/day). To run on the Reserved VM alone (about
-$0.50/day), add the configuration `SENTINEL_DB=sqlite` to the published app. Data then
-lives in a SQLite file on the VM, and the signed tokens above cover a lost file.
+$0.50/day), the published app runs `npm run start:sqlite` (set in `.replit`), which sets
+`SENTINEL_DB=sqlite`. Data then lives in a SQLite file on the VM, and the signed tokens
+above cover a lost file. Runs inside the workspace still use the free development
+database. To use Postgres in production instead, change the deployment run command
+in `.replit` back to `npm start`.
 
 ## Files
 

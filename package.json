@@ -6,6 +6,7 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
+    "start:sqlite": "SENTINEL_DB=sqlite node src/server.js",
     "test": "node --test test/*.test.js",
     "test:pg": "node --test --test-concurrency=1 test/*.test.js",
     "gateway": "node scripts/gen-gateway.js",

@@ -14,6 +14,8 @@ externalPort = 80
 
 # Publish as a Reserved VM (web server). Autoscale stops the process when idle,
 # which stops the background sampler.
+# The published app keeps its data in SQLite on the VM (SENTINEL_DB=sqlite) instead
+# of Replit's production Postgres, which is billed for every active hour.
 [deployment]
 build = ["npm", "ci", "--omit=dev"]
-run = ["npm", "start"]
+run = ["npm", "run", "start:sqlite"]
