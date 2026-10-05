@@ -10,7 +10,7 @@ function row(k, v) {
 
 const iso = (ms) => (ms ? new Date(ms).toISOString() : '-');
 
-export function renderStats({ stats, sources, sampler, diagnostics, now }) {
+export function renderStats({ stats, sources, sampler, diagnostics, revenue = {}, now }) {
   const main = [
     row('Active watches', stats.active_watches),
     row('Active watches by type', stats.active_by_type),
@@ -30,6 +30,7 @@ export function renderStats({ stats, sources, sampler, diagnostics, now }) {
     .join('');
 
   const diag = Object.entries(diagnostics).map(([k, v]) => row(k, v)).join('');
+  const rev = Object.entries(revenue).map(([k, v]) => row(k, v)).join('');
   const samp = [
     row('rounds completed', sampler.ticks),
     row('last round', iso(sampler.last_tick_at)),
@@ -42,6 +43,7 @@ export function renderStats({ stats, sources, sampler, diagnostics, now }) {
 <h1>AgentSentinel stats</h1>
 <p>${esc(new Date(now).toISOString())}</p>
 <table border="1" cellpadding="4">${main}</table>
+<h2>Merchant leaderboard</h2><table border="1" cellpadding="4">${rev || row('not started', '-')}</table>
 <h2>Sources</h2><table border="1" cellpadding="4">${src || row('none yet', '-')}</table>
 <h2>Sampler</h2><table border="1" cellpadding="4">${samp}</table>
 <h2>Gateway</h2><table border="1" cellpadding="4">${diag}</table>

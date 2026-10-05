@@ -14,6 +14,8 @@ import { TOKEN_PATTERN, readSignedToken } from './tokens.js';
 import { ValidationError, validateWatchBody, validateTokenBody, WATCH_EXAMPLES } from './validate.js';
 import { createRateLimiter } from './ratelimit.js';
 import { renderStats } from './stats.js';
+import { REVENUE_ROUTES } from './revenue/catalog.js';
+import { createRevenueHandlers } from './revenue/handlers.js';
 
 const iso = (ms) => (ms === null || ms === undefined ? null : new Date(Number(ms)).toISOString());
 
@@ -66,7 +68,7 @@ function eventOut(e) {
   };
 }
 
-export function createApp({ config, store, sampler, clock = Date.now, logger = console, tokenKey = null }) {
+export function createApp({ config, store, sampler, revenue, clock = Date.now, logger = console, tokenKey = null }) {
   const app = express();
   const limiter = createRateLimiter({ clock });
   const diagnostics = {
@@ -387,9 +389,21 @@ export function createApp({ config, store, sampler, clock = Date.now, logger = c
     res.json({ result_count: results.length, results });
   };
 
-  // ---------- routes from the catalog ----------
+  // Merchant leaderboard routes (/revenue/...), a second marketplace listing.
+  Object.assign(handlers, createRevenueHandlers({
+    config,
+    store: revenue.store,
+    tracker: revenue.tracker,
+    clock,
+    tokenKey,
+    limitTokens,
+    diagnostics,
+  }));
 
-  for (const route of ROUTES) {
+  // ---------- routes from the catalogs ----------
+
+  const allRoutes = [...ROUTES, ...REVENUE_ROUTES];
+  for (const route of allRoutes) {
     const handler = handlers[route.path];
     if (!handler) throw new Error(`catalog route ${route.method} ${route.path} has no handler`);
     const method = route.method.toLowerCase();
@@ -410,10 +424,24 @@ export function createApp({ config, store, sampler, clock = Date.now, logger = c
     const s = await store.stats(clock());
     const sources = {};
     for (const [k, v] of sampler.status) sources[k] = v;
+    const rs = await revenue.store.stats(clock());
+    const iso2 = (ms) => (ms ? new Date(ms).toISOString() : '-');
+    const cat = revenue.tracker.status.catalog;
+    const ch = revenue.tracker.status.chain;
     res.set('Cache-Control', 'no-store');
     res.type('html').send(renderStats({
       stats: s,
       sources,
+      revenue: {
+        'Paid requests by route (today / total)': Object.fromEntries(Object.entries(rs.paid_requests_by_route).map(([k, v]) => [k, `${v.today} / ${v.total}`])),
+        'Active leaderboard watches': rs.active_watches,
+        'Merchants / routes listed': `${rs.merchants_listed} / ${rs.routes_listed}`,
+        'On-chain payments indexed': rs.payments_indexed,
+        'Catalog last read': `${iso2(cat.last_ok_at)}${cat.failing ? ` | FAILING since ${iso2(cat.last_error_at)}: ${cat.last_error}` : ''}`,
+        'Chain read through': `block ${ch.indexed_through_block ?? '-'} (${iso2(ch.indexed_through_time)}), head ${ch.head_block ?? '-'}, merchants behind ${ch.merchants_behind ?? '-'}, block range ${ch.block_range}`,
+        'Chain last round': `${iso2(ch.last_ok_at)}${ch.failing ? ` | FAILING since ${iso2(ch.last_error_at)}: ${ch.last_error}` : ''}`,
+        'eth_getLogs requests since start': ch.log_requests,
+      },
       sampler: sampler.stats,
       diagnostics: {
         database: store.db.kind === 'postgres'
@@ -431,7 +459,7 @@ export function createApp({ config, store, sampler, clock = Date.now, logger = c
   });
 
   app.use((req, res) => {
-    res.status(404).json({ error: 'not_found', message: `no route ${req.method} ${req.path}`, routes: ROUTES.map((r) => `${r.method} ${r.path}`) });
+    res.status(404).json({ error: 'not_found', message: `no route ${req.method} ${req.path}`, routes: allRoutes.map((r) => `${r.method} ${r.path}`) });
   });
 
   // eslint-disable-next-line no-unused-vars

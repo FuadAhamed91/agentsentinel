@@ -34,6 +34,51 @@ The server registers its routes from it, `/info` reports prices from it, and
 `npm run gateway` writes `gateway.json` from it. A test fails if `gateway.json` and the
 catalog disagree.
 
+## Second listing: On-chain Merchant Leaderboard & Sales Tracker
+
+The same server sells a second service under `/revenue/...`, listed separately in the
+marketplace (its own name, tags and capability text, from
+[src/revenue/catalog.js](src/revenue/catalog.js); `npm run gateway` writes
+`gateway.revenue.json`). It ranks every marketplace merchant by the USDC its payout address
+actually received on XDC mainnet, the number the event's on-chain snapshot measures, next
+to the catalog's own call and volume counters (which can differ: on 2026-10-05 the catalog
+showed about $115 of volume and the chain about $27 of payments).
+
+| Route | Price (USDC) | Purpose |
+|---|---|---|
+| `GET /revenue/leaderboard` | 0.05 | No body. Every merchant ranked by on-chain revenue (total, 24h, 1h, payments, last sale) with catalog calls and volume, market totals, top selling routes of the last 24h. |
+| `POST /revenue/merchant` | 0.05 | `{ "merchant": "<name, gw_ id, payout address or route URL>" }`. Rank, gap to the merchants above and below, each recent payment (time, amount, payer, tx hash, route), top payers, per-route counters. |
+| `POST /revenue/watch` | 0.10 | Same body for one merchant, or empty for the whole marketplace. Returns a `watch_token` and the current report. |
+| `POST /revenue/check` | 0.05 | `{ "watch_tokens": [...] }`. Since the previous check: each new payment, revenue change, rank then and now, merchants passed and passed by, new merchants, catalog counter increases. |
+| `GET /revenue/info` | free | Field definitions, prices, examples, coverage. |
+| `POST /revenue/cancel` | free | Cancels leaderboard watches. |
+
+How it is read (all public data, nothing is paid or called on any merchant):
+
+- **Catalog:** `GET https://xdcai.tech/api/catalog` every 60 s. Each route row carries its
+  payout address (`payTo`); listings that share a payout address are one merchant.
+  Counter increases and price changes are stored with the time they were seen.
+- **Chain:** every 15 s, `eth_getLogs` for USDC (`0xfA29…8eb1`) `Transfer` events whose
+  recipient is any listed payout address, one block range per request for all merchants.
+  A newly listed payout address is read from `REVENUE_START` (default
+  2026-10-05T00:00:00Z) onward. Refused block ranges are halved automatically.
+- **Watches** use the same signed tokens as price watches; a lost database is rebuilt from
+  the chain and the catalog, and each watch from its token (`history_reset_at`).
+- Responses carry a `data` block: block and time the chain is read through, catalog read
+  time, and `onchain_stale` / `catalog_stale`. Before the first catalog read the paid
+  routes answer 503 (not charged).
+
+```bash
+curl -s $BASE/revenue/leaderboard -H "$AUTH"
+curl -s -X POST $BASE/revenue/merchant -H "$AUTH" -H 'content-type: application/json' -d '{"merchant":"AgentSentinel"}'
+curl -s -X POST $BASE/revenue/watch -H "$AUTH" -H 'content-type: application/json' -d '{}'
+curl -s -X POST $BASE/revenue/check -H "$AUTH" -H 'content-type: application/json' -d '{"watch_tokens":["wt_..."]}'
+```
+
+To list it: `PUBLIC_BASE_URL=https://YOUR-APP.replit.app GATEWAY_SECRET=... npm run gateway:import`
+also writes `gateway.revenue.import.json` (git-ignored; same bearer secret, same upstream,
+paths start with `/revenue/`). Import it in the gateway dashboard as a second service.
+
 ## Watch types
 
 | type | unit | conditions | source |
@@ -246,8 +291,14 @@ src/types/*.js          xdc_price, xdc_gas, wallet_balance modules
 src/sources/*.js        price APIs and XDC JSON-RPC client with failover
 src/db/*.js             Postgres (DATABASE_URL) and SQLite (sql.js) adapters, schema
 src/stats.js            plain /stats page
-src/gateway-listing.js  builds the gateway service JSON
-scripts/gen-gateway.js  writes gateway.json / gateway.import.json
+src/gateway-listing.js  builds both gateway service JSONs
+src/revenue/catalog.js  leaderboard listing: routes, prices, tags, capability text
+src/revenue/sources.js  marketplace catalog reader and USDC transfer reader (eth_getLogs)
+src/revenue/tracker.js  background catalog and chain rounds, block range halving, lease
+src/revenue/store.js    leaderboard SQL (routes, payments, watches)
+src/revenue/report.js   leaderboard, merchant and since-last-check reports
+src/revenue/handlers.js /revenue/... HTTP handlers
+scripts/gen-gateway.js  writes gateway(.revenue).json, routes files and import files
 scripts/live-check.js   live request to every data source
 test/*.test.js          node:test suites
 ```

@@ -4,13 +4,15 @@ import fs from 'node:fs';
 import { loadConfig } from './config.js';
 import { startServer } from './bootstrap.js';
 import { createLiveSources } from './sources/index.js';
+import { createLiveMarket } from './revenue/sources.js';
 
 if (fs.existsSync('.env') && typeof process.loadEnvFile === 'function') process.loadEnvFile('.env');
 
 const config = loadConfig();
-const srv = await startServer({ config, sources: createLiveSources(config) });
+const srv = await startServer({ config, sources: createLiveSources(config), market: createLiveMarket(config) });
 
 console.log(`[agentsentinel] listening on port ${srv.port}, database: ${srv.db.kind}, sample interval ${config.sampleIntervalMs / 1000}s`);
+console.log(`[agentsentinel] merchant leaderboard ${config.revenueTracker ? `on: catalog every ${config.catalogIntervalMs / 1000}s, chain every ${config.chainIntervalMs / 1000}s, revenue from ${new Date(config.revenueStartMs).toISOString()}` : 'reader off (REVENUE_TRACKER=off)'}`);
 if (!config.gatewaySecret) {
   console.warn('[agentsentinel] WARNING: GATEWAY_SECRET is not set. Paid routes accept direct calls without payment.');
 }

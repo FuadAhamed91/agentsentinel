@@ -1,0 +1,78 @@
+{
+  "name": "On-chain Merchant Leaderboard & Sales Tracker",
+  "upstreamBaseUrl": "https://YOUR-APP.replit.app",
+  "description": "Every XDC AI marketplace merchant ranked by the USDC its payout address received on XDC mainnet, next to the marketplace catalog call and volume counters. A watch on one merchant or on the whole marketplace reports each new payment, revenue change, rank change and overtake since the previous check.",
+  "tags": [
+    "leaderboard",
+    "ranking",
+    "rank",
+    "revenue",
+    "sales",
+    "earnings",
+    "merchant",
+    "merchants",
+    "marketplace",
+    "onchain",
+    "usdc",
+    "x402",
+    "payments",
+    "analytics",
+    "stats",
+    "competition",
+    "hackathon",
+    "tracker",
+    "watch",
+    "top"
+  ],
+  "paymentType": "x402",
+  "enabled": true,
+  "isPublic": true,
+  "auth": {
+    "method": "bearer",
+    "secret": "REPLACE_WITH_GATEWAY_SECRET"
+  },
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/revenue/leaderboard",
+      "priceUSDC": "0.05",
+      "capability": "marketplace.leaderboard: every XDC AI marketplace merchant ranked by on-chain USDC revenue from XDC mainnet: total, 24h, 1h, payments, last sale, catalog calls and volume, top selling routes 24h; GET, no request body",
+      "enabled": true
+    },
+    {
+      "method": "POST",
+      "path": "/revenue/merchant",
+      "priceUSDC": "0.05",
+      "capability": "marketplace.merchant.sales: one merchant by name, service id or payout address: rank, on-chain revenue, each recent payment with time, amount, payer and tx hash, gap to the merchants ranked above and below, calls per route",
+      "enabled": true
+    },
+    {
+      "method": "POST",
+      "path": "/revenue/watch",
+      "priceUSDC": "0.10",
+      "capability": "marketplace.merchant.watch: persistent sales and rank tracker for one merchant, or for the whole marketplace with an empty body; returns watch_token and the current report",
+      "enabled": true
+    },
+    {
+      "method": "POST",
+      "path": "/revenue/check",
+      "priceUSDC": "0.05",
+      "capability": "marketplace.merchant.check: report per watch since its last check: each new on-chain payment, revenue change, rank then and now, merchants passed and passed by, new merchants listed",
+      "enabled": true
+    },
+    {
+      "method": "GET",
+      "path": "/revenue/info",
+      "priceUSDC": "0",
+      "capability": "tracker.info: free field definitions, route costs and example request bodies",
+      "enabled": true
+    },
+    {
+      "method": "POST",
+      "path": "/revenue/cancel",
+      "priceUSDC": "0",
+      "capability": "tracker.cancel: free cancellation by watch_token",
+      "enabled": true
+    }
+  ]
+}

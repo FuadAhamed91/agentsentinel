@@ -1,5 +1,6 @@
 import { openPostgres } from './postgres.js';
 import { openSqlite } from './sqlite.js';
+import { revenueSchema } from '../revenue/schema.js';
 
 // Column types are chosen to mean the same thing in Postgres and SQLite.
 // Only the auto-increment primary key differs.
@@ -99,5 +100,6 @@ export async function openDatabase({ databaseUrl, sqlitePath }) {
   const db = databaseUrl ? await openPostgres(databaseUrl) : await openSqlite(sqlitePath);
   await db.exec(schema(db.kind));
   await migrate(db);
+  await db.exec(revenueSchema(db.kind));
   return db;
 }

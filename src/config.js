@@ -21,6 +21,15 @@ function list(value, fallback) {
   return value.split(',').map((s) => s.trim()).filter(Boolean);
 }
 
+function time(value, fallback) {
+  const ms = Date.parse(value || fallback);
+  if (!Number.isFinite(ms)) throw new Error(`invalid time configuration value: ${value}`);
+  return ms;
+}
+
+// USDC on XDC mainnet: the asset in the XDC AI gateway's 402 challenges.
+const USDC_XDC = '0xfA2958CB79b0491CC627c1557F441eF849Ca8eb1';
+
 export function loadConfig(env = process.env) {
   const sampleIntervalSeconds = num(env.SAMPLE_INTERVAL_SECONDS, 15, { min: 1, max: 3600 });
   const dbMode = (env.SENTINEL_DB || '').toLowerCase();
@@ -64,5 +73,18 @@ export function loadConfig(env = process.env) {
     maxActiveWatches: num(env.MAX_ACTIVE_WATCHES, 100000, { min: 1 }),
     maxWalletAddresses: num(env.MAX_WALLET_ADDRESSES, 2000, { min: 1 }),
     maxTriggersPerReport: num(env.MAX_TRIGGERS_PER_REPORT, 20, { min: 1, max: 500 }),
+
+    // Merchant leaderboard (/revenue/...).
+    revenueTracker: (env.REVENUE_TRACKER || 'on').toLowerCase() !== 'off',
+    catalogUrl: env.MARKETPLACE_CATALOG_URL || 'https://xdcai.tech/api/catalog',
+    catalogIntervalMs: num(env.CATALOG_INTERVAL_SECONDS, 60, { min: 10, max: 3600 }) * 1000,
+    chainIntervalMs: num(env.CHAIN_INTERVAL_SECONDS, 15, { min: 2, max: 3600 }) * 1000,
+    chainRpcUrls: list(env.CHAIN_RPC_URLS, list(env.XDC_RPC_URLS, DEFAULT_RPC_URLS)),
+    usdcAddress: (env.USDC_ADDRESS || USDC_XDC).toLowerCase(),
+    // On-chain revenue is counted from this moment (first day of the event).
+    revenueStartMs: time(env.REVENUE_START, '2026-10-05T00:00:00Z'),
+    logsBlockRange: num(env.LOGS_BLOCK_RANGE, 1000, { min: 25, max: 100000 }),
+    chainConfirmations: num(env.CHAIN_CONFIRMATIONS, 3, { min: 0, max: 100 }),
+    maxLogRequestsPerRound: num(env.MAX_LOG_REQUESTS_PER_ROUND, 60, { min: 1, max: 10000 }),
   };
 }

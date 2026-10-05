@@ -1,14 +1,16 @@
-// Writes the gateway listing from src/catalog.js.
+// Writes the gateway listings from src/catalog.js and src/revenue/catalog.js.
 //
 //   npm run gateway
-//     -> gateway.json with PUBLIC_BASE_URL (or a placeholder) and a placeholder secret.
-//        Safe to commit.
+//     -> gateway.json and gateway.revenue.json with PUBLIC_BASE_URL (or a placeholder)
+//        and a placeholder secret, plus gateway.routes.json and gateway.revenue.routes.json
+//        for the dashboard's "Edit all (JSON)" editor. Safe to commit.
 //   npm run gateway:import
-//     -> gateway.import.json with PUBLIC_BASE_URL and the real GATEWAY_SECRET,
-//        ready for the dashboard's Import JSON button. Git-ignored; do not commit it.
+//     -> gateway.import.json and gateway.revenue.import.json with PUBLIC_BASE_URL and the
+//        real GATEWAY_SECRET, ready for the dashboard's Import JSON button.
+//        Git-ignored; do not commit them.
 
 import fs from 'node:fs';
-import { buildGatewayJson, PLACEHOLDER_UPSTREAM } from '../src/gateway-listing.js';
+import { buildGatewayJson, buildRoutesJson, LISTINGS, PLACEHOLDER_UPSTREAM } from '../src/gateway-listing.js';
 
 if (fs.existsSync('.env') && typeof process.loadEnvFile === 'function') process.loadEnvFile('.env');
 
@@ -29,7 +31,20 @@ if (withSecret) {
   }
 }
 
-const listing = buildGatewayJson(withSecret ? { upstreamBaseUrl, secret: process.env.GATEWAY_SECRET } : { upstreamBaseUrl });
-const file = withSecret ? 'gateway.import.json' : 'gateway.json';
-fs.writeFileSync(file, `${JSON.stringify(listing, null, 2)}\n`);
-console.log(`wrote ${file} (${listing.routes.length} routes, upstream ${listing.upstreamBaseUrl})`);
+const write = (file, value) => fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
+
+for (const l of LISTINGS) {
+  const listing = buildGatewayJson({
+    service: l.service,
+    routes: l.routes,
+    upstreamBaseUrl,
+    ...(withSecret ? { secret: process.env.GATEWAY_SECRET } : {}),
+  });
+  const file = withSecret ? l.importFile : l.file;
+  write(file, listing);
+  console.log(`wrote ${file} (${listing.name}: ${listing.routes.length} routes, upstream ${listing.upstreamBaseUrl})`);
+  if (!withSecret) {
+    write(l.routesFile, buildRoutesJson(l.routes));
+    console.log(`wrote ${l.routesFile}`);
+  }
+}
