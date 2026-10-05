@@ -1,0 +1,25 @@
+{
+  "name": "agentsentinel",
+  "version": "1.0.0",
+  "description": "Persistent monitoring for XDC price, gas and wallet balances, sold to AI agents through the XDC AI x402 gateway.",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test test/*.test.js",
+    "test:pg": "node --test --test-concurrency=1 test/*.test.js",
+    "gateway": "node scripts/gen-gateway.js",
+    "gateway:import": "node scripts/gen-gateway.js --with-secret",
+    "live-check": "node scripts/live-check.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "private": true,
+  "dependencies": {
+    "express": "5.2.1",
+    "pg": "8.23.1",
+    "sql.js": "1.14.2"
+  }
+}
