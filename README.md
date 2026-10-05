@@ -51,7 +51,7 @@ showed about $115 of volume and the chain about $27 of payments).
 
 | Route | Price (USDC) | Purpose |
 |---|---|---|
-| `GET /revenue/leaderboard` | 0.05 | No body. Every merchant ranked by on-chain revenue (total, 24h, 1h, payments, last sale) with catalog calls and volume, market totals, top selling routes of the last 24h. |
+| `GET /revenue/leaderboard` | 0.05 | No body. Who is leading and by how much (`leader`, `lead_usdc`, each merchant's `behind_leader_usdc`), then every merchant ranked by on-chain revenue (total, 24h, 1h, payments, last sale) with catalog calls and volume, market totals, top selling routes of the last 24h. |
 | `POST /revenue/merchant` | 0.05 | `{ "merchant": "<name, gw_ id, payout address or route URL>" }`. Rank, gap to the merchants above and below, each recent payment (time, amount, payer, tx hash, route), top payers, per-route counters. |
 | `POST /revenue/watch` | 0.05 | Same body for one merchant, or empty for the whole marketplace. Returns a `watch_token` and the current report. |
 | `POST /revenue/check` | 0.05 | `{ "watch_tokens": [...] }`. Since the previous check: each new payment, revenue change, rank then and now, merchants passed and passed by, new merchants, catalog counter increases. |

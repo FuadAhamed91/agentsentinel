@@ -46,10 +46,19 @@ test('a paid row scores 5 (exact tag) for the core search words', () => {
 });
 
 test('a paid row matches the other ways an agent may phrase the request (capability words)', () => {
-  for (const term of ['income', 'earned', 'winners', 'standings', 'competitors', 'buyer', 'buyers', 'trending', 'popular', 'selling', 'volume', 'report']) {
+  for (const term of [
+    'income', 'earned', 'winners', 'standings', 'competitors', 'buyer', 'buyers', 'trending', 'popular', 'selling', 'volume', 'report',
+    'leading', 'leaders', 'margin', 'ahead', 'behind', 'much',
+  ]) {
     const best = Math.max(...paidRows.map((r) => scoreService(r, [term])));
     assert.ok(best >= 4, `"${term}" scores ${best}`);
   }
+});
+
+test('the question "who is leading" as one search term lands on the leaderboard row', () => {
+  const lb = paidRows.find((r) => r.path === '/revenue/leaderboard');
+  assert.ok(scoreService(lb, ['who is leading']) >= 3);
+  assert.ok(scoreService(lb, ['by how much']) >= 3);
 });
 
 test('every paid route passes a --max-price 0.05 filter', () => {

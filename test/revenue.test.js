@@ -58,6 +58,15 @@ test('GET /revenue/leaderboard ranks payout addresses by USDC received on-chain 
     assert.equal(r.status, 200);
     const lb = r.json.leaderboard;
     assert.deepEqual(lb.map((e) => [e.rank, e.merchant]), [[1, 'Bravo Booking'], [2, 'Alpha Tools'], [3, 'Charlie Data']]);
+    assert.deepEqual(r.json.leader, {
+      merchant: 'Bravo Booking',
+      pay_to: B,
+      onchain_revenue_usdc: 2,
+      second: 'Alpha Tools',
+      second_onchain_revenue_usdc: 1.75,
+      lead_usdc: 0.25,
+    }, 'who is leading and by how much');
+    assert.deepEqual(lb.map((e) => e.behind_leader_usdc), [0, 0.25, 2]);
     assert.equal(lb[0].onchain_revenue_usdc, 2);
     assert.equal(lb[0].onchain_payments, 1);
     const alpha = lb[1];
@@ -137,6 +146,7 @@ test('POST /revenue/merchant finds a merchant by name, service id, payout addres
     assert.equal(j.rank, 2);
     assert.equal(j.merchants_ranked, 3);
     assert.equal(j.onchain_revenue_usdc, 1.32);
+    assert.equal(j.behind_leader_usdc, 0.68);
     assert.deepEqual(j.rank_above, { rank: 1, merchant: 'Bravo Booking', onchain_revenue_usdc: 2, gap_usdc: 0.68 });
     assert.deepEqual(j.rank_below, { rank: 3, merchant: 'Charlie Data', onchain_revenue_usdc: 0, gap_usdc: 1.32 });
     assert.deepEqual(j.recent_payments.map((p) => [p.amount_usdc, p.route]), [
@@ -202,6 +212,9 @@ test('a merchant watch reports each new payment once, with rank changes and over
     assert.deepEqual(c.passed_by, []);
     assert.equal(c.onchain_revenue_usdc, 2.5);
     assert.equal(c.onchain_revenue_at_last_check_usdc, 0);
+    assert.equal(c.behind_leader_usdc, 0);
+    assert.equal(c.leader.merchant, 'Charlie Data');
+    assert.equal(c.leader.lead_usdc, 0.5);
     assert.equal(c.rank_above, null);
     assert.deepEqual(c.rank_below, { rank: 2, merchant: 'Bravo Booking', onchain_revenue_usdc: 2, gap_usdc: 0.5 });
     assert.equal(c.catalog_calls_since_last_check, 2);
@@ -230,6 +243,7 @@ test('a merchant watch reports each new payment once, with rank changes and over
     assert.equal(c.rank_change, -1);
     assert.deepEqual(c.passed_by, ['Bravo Booking']);
     assert.deepEqual(c.rank_above, { rank: 1, merchant: 'Bravo Booking', onchain_revenue_usdc: 3, gap_usdc: 0.5 });
+    assert.equal(c.behind_leader_usdc, 0.5);
 
     assert.equal((await s.post('/revenue/check', { watch_tokens: [token] }, { gateway: false })).status, 401, 'paid route');
   } finally {
@@ -277,6 +291,7 @@ test('a market watch (empty body) reports payments across merchants, rank change
     assert.equal(w.status, 200);
     assert.equal(w.json.target, 'market');
     assert.deepEqual(w.json.leaderboard.map((e) => e.merchant), ['Bravo Booking', 'Alpha Tools', 'Charlie Data'], 'by catalog volume while nobody has on-chain revenue');
+    assert.equal(w.json.leader.lead_usdc, 0);
 
     const D = `0x${'d4'.repeat(20)}`;
     s.market.listRoute({ provider: 'Delta New', providerId: 'gw_delta', payTo: D, path: '/new', price: '0.5' });
@@ -301,6 +316,14 @@ test('a market watch (empty body) reports payments across merchants, rank change
     assert.deepEqual(c.revenue_gains.map((g) => [g.merchant, g.new_revenue_usdc]), [['Alpha Tools', 1], ['Delta New', 0.5]]);
     assert.equal(c.leaderboard_top[0].merchant, 'Delta New');
     assert.equal(c.leaderboard_top[0].onchain_revenue_usdc, 9.5);
+    assert.deepEqual(c.leader, {
+      merchant: 'Delta New',
+      pay_to: D,
+      onchain_revenue_usdc: 9.5,
+      second: 'Alpha Tools',
+      second_onchain_revenue_usdc: 1,
+      lead_usdc: 8.5,
+    });
     assert.equal(c.market.merchants, 4);
   } finally {
     await s.close();

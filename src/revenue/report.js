@@ -76,6 +76,8 @@ export async function loadBoard(store, now, { startMs }) {
     || x.name.localeCompare(y.name)
     || x.payTo.localeCompare(y.payTo));
   list.forEach((a, i) => { a.rank = i + 1; });
+  const leaderMicro = list.length ? list[0].revenueMicro : 0;
+  for (const a of list) a.behindLeaderMicro = leaderMicro - a.revenueMicro;
   return {
     now,
     startMs,
@@ -95,9 +97,24 @@ export function boardEntry(a) {
     onchain_payments: a.payments,
     onchain_revenue_24h_usdc: usdc(a.revenue24Micro),
     onchain_revenue_1h_usdc: usdc(a.revenue1Micro),
+    behind_leader_usdc: usdc(a.behindLeaderMicro),
     last_payment_time: iso(a.lastPaymentTs),
     catalog_volume_usdc: a.catalogVolume,
     catalog_calls: a.catalogCalls,
+  };
+}
+
+// Who is ranked first and by how much over the merchant ranked second.
+export function leaderSummary(board) {
+  const [first, second] = board.list;
+  if (!first) return null;
+  return {
+    merchant: first.name,
+    pay_to: first.payTo,
+    onchain_revenue_usdc: usdc(first.revenueMicro),
+    second: second ? second.name : null,
+    second_onchain_revenue_usdc: second ? usdc(second.revenueMicro) : null,
+    lead_usdc: second ? usdc(first.revenueMicro - second.revenueMicro) : null,
   };
 }
 
@@ -288,6 +305,7 @@ export async function checkReport(store, board, watch, { now, snapshotMaxId, cat
           .map((b) => ({ merchant: b.name, rank: b.rank, rank_at_last_check: oldRanks[b.payTo] }))
         : null,
       new_merchants: newMerchants,
+      leader: leaderSummary(board),
       market: marketSummary(board),
       leaderboard_top: board.list.slice(0, 10).map(boardEntry),
     };
@@ -333,6 +351,8 @@ export async function checkReport(store, board, watch, { now, snapshotMaxId, cat
     merchants_ranked: board.list.length,
     onchain_revenue_usdc: a ? usdc(a.revenueMicro) : null,
     onchain_revenue_at_last_check_usdc: watch.last_revenue_micro === null ? null : usdc(watch.last_revenue_micro),
+    behind_leader_usdc: a ? usdc(a.behindLeaderMicro) : null,
+    leader: leaderSummary(board),
     passed,
     passed_by: passedBy,
     rank_above: a ? neighbor(board.list[a.rank - 2], a.revenueMicro) : null,

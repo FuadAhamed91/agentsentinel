@@ -8,7 +8,7 @@ import { hashToken } from '../store.js';
 import { TOKEN_PATTERN, readSignedToken } from '../tokens.js';
 import {
   loadBoard, boardEntry, marketSummary, topRoutes24h, dataStatus, resolveMerchant,
-  merchantReport, checkReport, iso,
+  merchantReport, checkReport, leaderSummary, iso,
 } from './report.js';
 
 const MERCHANT_FIELDS = ['merchant', 'name', 'provider', 'provider_name', 'provider_id', 'service_id', 'pay_to', 'payTo', 'address', 'url'];
@@ -113,6 +113,8 @@ export function createRevenueHandlers({ config, store, tracker, clock, tokenKey,
         onchain_revenue_usdc: `USDC received by the payout address on XDC mainnet since ${iso(startMs)}, summed from Transfer events of USDC ${config.usdcAddress}`,
         onchain_payments: 'number of those transfers',
         rank: 'position by onchain_revenue_usdc, then catalog_volume_usdc',
+        leader: 'merchant ranked first, its onchain_revenue_usdc, the merchant ranked second, and lead_usdc: the difference between the two',
+        behind_leader_usdc: 'onchain_revenue_usdc of the merchant ranked first minus this merchant\'s',
         catalog_volume_usdc: 'volume counter published by the marketplace catalog for the merchant routes; it can differ from onchain_revenue_usdc',
         catalog_calls: 'call counter published by the marketplace catalog',
         route: 'listing, method and path whose price equals the payment amount; null when no single route of that merchant has that price',
@@ -161,6 +163,7 @@ export function createRevenueHandlers({ config, store, tracker, clock, tokenKey,
       res.json({
         time: iso(now),
         ranked_by: 'onchain_revenue_usdc, then catalog_volume_usdc',
+        leader: leaderSummary(b),
         market: marketSummary(b),
         leaderboard: b.list.map(boardEntry),
         top_routes_24h: topRoutes24h(b),
@@ -210,7 +213,7 @@ export function createRevenueHandlers({ config, store, tracker, clock, tokenKey,
       await store.logRequest('/revenue/watch', req.viaGateway, now);
       const current = account
         ? await merchantReport(store, b, account)
-        : { market: marketSummary(b), leaderboard: b.list.map(boardEntry) };
+        : { leader: leaderSummary(b), market: marketSummary(b), leaderboard: b.list.map(boardEntry) };
       res.status(200).json({
         watch_token: token,
         watch_id: watch.id,

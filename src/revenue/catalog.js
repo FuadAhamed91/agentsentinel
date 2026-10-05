@@ -22,14 +22,14 @@ export const REVENUE_ROUTES = [
     path: '/revenue/leaderboard',
     priceUSDC: '0.05',
     capability:
-      'marketplace.leaderboard: all XDC AI merchants ranked by on-chain USDC revenue, income and earnings: total, 24h, 1h, payments, volume, last sale; standings, current winners, top selling, popular and trending routes; GET, no request body',
+      'marketplace.leaderboard: who is leading and by how much: all XDC AI merchants ranked by on-chain USDC revenue, income, earnings; leaders, standings, winners, margin; 24h, 1h, volume; top selling, popular, trending routes; GET, no body',
   },
   {
     method: 'POST',
     path: '/revenue/merchant',
     priceUSDC: '0.05',
     capability:
-      'marketplace.merchant.sales: one merchant by name, service id or payout address: rank, on-chain revenue, USDC earned, each recent payment with time, amount, buyer address and tx hash, gap to competitors ranked above and below',
+      'marketplace.merchant.sales: one merchant by name, service id or payout address: rank, on-chain revenue, USDC earned, each recent payment with time, amount, buyer address and tx hash, gap to competitors ahead and behind',
   },
   {
     method: 'POST',
