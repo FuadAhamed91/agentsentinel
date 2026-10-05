@@ -10,12 +10,18 @@ The service is a plain HTTPS JSON API. The XDC AI Gateway sits in front of it, s
 agent the 402 challenge, verifies the payment, forwards the call, and settles on-chain
 only when this server answers 2xx. There is no payment code here.
 
-**Live (since 2026-10-05 16:12 UTC):**
-gateway service `gw_51b0e7ef6347a4a96d`, agent URL
-`https://api.xdcai.tech/x402/connect/gw_51b0e7ef6347a4a96d/<route>`, upstream
-`https://agentsentinel.replit.app` (Replit Reserved VM, SQLite mode), public in the
-XDC AI marketplace. Settlement payTo in the 402 challenge:
-`0xad023090B3411Adb59D45f6c1f6F1147BF3603AA` (gateway contract for this account).
+**Live listing (one listing, since 2026-10-05 17:55 UTC): On-chain Merchant Leaderboard &
+Sales Tracker**, the `/revenue/...` routes described in the next section. Gateway service
+`gw_51b0e7ef6347a4a96d`, agent URL
+`https://api.xdcai.tech/x402/connect/gw_51b0e7ef6347a4a96d/revenue/<route>`, upstream
+`https://agentsentinel.replit.app` (Replit Reserved VM, SQLite mode). Settlement payTo in
+the 402 challenge: `0xad023090B3411Adb59D45f6c1f6F1147BF3603AA` (gateway contract for this
+account). The service was first listed as AgentSentinel (price watches below) and was
+switched in place: same service id, payTo and bearer secret, new name, tags and endpoints
+(dashboard *Edit* plus *Edit all (JSON)* with `gateway.revenue.routes.json`).
+
+The XDC price, gas and wallet watch routes below are still served by this code but are
+**not listed**, so the gateway does not route to them.
 
 | Route | Price (USDC) | Purpose |
 |---|---|---|
@@ -34,12 +40,11 @@ The server registers its routes from it, `/info` reports prices from it, and
 `npm run gateway` writes `gateway.json` from it. A test fails if `gateway.json` and the
 catalog disagree.
 
-## Second listing: On-chain Merchant Leaderboard & Sales Tracker
+## The listed product: On-chain Merchant Leaderboard & Sales Tracker
 
-The same server sells a second service under `/revenue/...`, listed separately in the
-marketplace (its own name, tags and capability text, from
+The `/revenue/...` routes are the marketplace listing (name, tags and capability text from
 [src/revenue/catalog.js](src/revenue/catalog.js); `npm run gateway` writes
-`gateway.revenue.json`). It ranks every marketplace merchant by the USDC its payout address
+`gateway.revenue.json` and `gateway.revenue.routes.json`). It ranks every marketplace merchant by the USDC its payout address
 actually received on XDC mainnet, the number the event's on-chain snapshot measures, next
 to the catalog's own call and volume counters (which can differ: on 2026-10-05 the catalog
 showed about $115 of volume and the chain about $27 of payments).
@@ -70,14 +75,16 @@ How it is read (all public data, nothing is paid or called on any merchant):
 
 ```bash
 curl -s $BASE/revenue/leaderboard -H "$AUTH"
-curl -s -X POST $BASE/revenue/merchant -H "$AUTH" -H 'content-type: application/json' -d '{"merchant":"AgentSentinel"}'
+curl -s -X POST $BASE/revenue/merchant -H "$AUTH" -H 'content-type: application/json' -d '{"merchant":"On-chain Merchant Leaderboard & Sales Tracker"}'
 curl -s -X POST $BASE/revenue/watch -H "$AUTH" -H 'content-type: application/json' -d '{}'
 curl -s -X POST $BASE/revenue/check -H "$AUTH" -H 'content-type: application/json' -d '{"watch_tokens":["wt_..."]}'
 ```
 
-To list it: `PUBLIC_BASE_URL=https://YOUR-APP.replit.app GATEWAY_SECRET=... npm run gateway:import`
-also writes `gateway.revenue.import.json` (git-ignored; same bearer secret, same upstream,
-paths start with `/revenue/`). Import it in the gateway dashboard as a second service.
+To list it on a fresh account: `PUBLIC_BASE_URL=https://YOUR-APP.replit.app GATEWAY_SECRET=... npm run gateway:import`
+also writes `gateway.revenue.import.json` (git-ignored; paths start with `/revenue/`) for the
+dashboard's Import JSON button. On an account that already has a service, edit that service
+instead (name, description, tags, then *Edit all (JSON)* with `gateway.revenue.routes.json`),
+so the account keeps a single listing.
 
 ## Watch types
 

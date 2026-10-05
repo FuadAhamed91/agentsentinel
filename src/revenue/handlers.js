@@ -12,7 +12,8 @@ import {
 } from './report.js';
 
 const MERCHANT_FIELDS = ['merchant', 'name', 'provider', 'provider_name', 'provider_id', 'service_id', 'pay_to', 'payTo', 'address', 'url'];
-const MERCHANT_EXAMPLE = { merchant: 'AgentSentinel' };
+// This listing's own marketplace name, so the example always resolves to a listed merchant.
+const MERCHANT_EXAMPLE = { merchant: REVENUE_SERVICE.name };
 const MERCHANT_FORMS = 'a listing name, a service id (gw_...), a payout address (0x... or xdc...) or a route URL';
 
 // The merchant identifier from the JSON body (or the query string). null when absent.

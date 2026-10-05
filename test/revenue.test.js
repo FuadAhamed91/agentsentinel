@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { startTestServer, blockAt, STATS_SECRET } from './helpers.js';
-import { REVENUE_ROUTES } from '../src/revenue/catalog.js';
+import { REVENUE_ROUTES, REVENUE_SERVICE } from '../src/revenue/catalog.js';
 import { parseCatalog, parseTransferLog, TRANSFER_TOPIC } from '../src/revenue/sources.js';
 
 const MIN = 60 * 1000;
@@ -388,6 +388,7 @@ test('cancel ends a leaderboard watch; tokens are reported per item; /revenue/in
     assert.equal(info.status, 200, 'free route');
     assert.deepEqual(info.json.routes.map((r) => [r.method, r.path, r.price_usdc]), REVENUE_ROUTES.map((r) => [r.method, r.path, r.priceUSDC]));
     assert.equal(info.json.coverage.merchants_tracked, 3);
+    assert.deepEqual(info.json.request_examples['POST /revenue/merchant'], { merchant: REVENUE_SERVICE.name }, 'the example names this listing');
 
     const stats = await s.get(`/stats?key=${STATS_SECRET}`, { gateway: false });
     assert.equal(stats.status, 200);
