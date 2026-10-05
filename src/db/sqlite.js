@@ -25,6 +25,7 @@ export async function openSqlite(file) {
   let dirty = false;
   let saveTimer = null;
   let closed = false;
+  let saveFailures = 0;
 
   function exclusive(fn) {
     const run = chain.then(fn);
@@ -60,7 +61,14 @@ export async function openSqlite(file) {
     if (!saveTimer) {
       saveTimer = setTimeout(() => {
         saveTimer = null;
-        exclusive(writeFile).catch((err) => console.error('[db] sqlite save failed:', err.message));
+        // The data stays in memory if the file cannot be written; log the first
+        // failure and then every 100th so a read-only disk does not flood the log.
+        exclusive(writeFile).catch((err) => {
+          saveFailures += 1;
+          if (saveFailures === 1 || saveFailures % 100 === 0) {
+            console.error(`[db] sqlite save failed (${saveFailures}x): ${err.message}`);
+          }
+        });
       }, 2000);
       saveTimer.unref?.();
     }

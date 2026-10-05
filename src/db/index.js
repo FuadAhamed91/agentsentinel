@@ -33,7 +33,8 @@ CREATE TABLE IF NOT EXISTS watches (
   last_check_event_id BIGINT NOT NULL DEFAULT 0,
   check_count INTEGER NOT NULL DEFAULT 0,
   trigger_count INTEGER NOT NULL DEFAULT 0,
-  via_gateway INTEGER NOT NULL DEFAULT 0
+  via_gateway INTEGER NOT NULL DEFAULT 0,
+  restored_at BIGINT
 );
 CREATE INDEX IF NOT EXISTS watches_source_status ON watches (source_key, status);
 CREATE INDEX IF NOT EXISTS watches_status_expires ON watches (status, expires_at);
@@ -81,8 +82,21 @@ CREATE TABLE IF NOT EXISTS sampler_lease (
 `;
 }
 
+// Columns added after the first release, for databases created before them.
+async function migrate(db) {
+  if (db.kind === 'postgres') {
+    await db.exec('ALTER TABLE watches ADD COLUMN IF NOT EXISTS restored_at BIGINT');
+    return;
+  }
+  const cols = await db.query('PRAGMA table_info(watches)');
+  if (!cols.some((c) => c.name === 'restored_at')) {
+    await db.exec('ALTER TABLE watches ADD COLUMN restored_at BIGINT');
+  }
+}
+
 export async function openDatabase({ databaseUrl, sqlitePath }) {
   const db = databaseUrl ? await openPostgres(databaseUrl) : await openSqlite(sqlitePath);
   await db.exec(schema(db.kind));
+  await migrate(db);
   return db;
 }

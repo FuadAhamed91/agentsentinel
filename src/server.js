@@ -15,9 +15,9 @@ if (!config.gatewaySecret) {
   console.warn('[agentsentinel] WARNING: GATEWAY_SECRET is not set. Paid routes accept direct calls without payment.');
 }
 if (!config.databaseUrl) {
-  console.warn(`[agentsentinel] DATABASE_URL not set; using local SQLite file ${config.sqlitePath}. Use Postgres in production.`);
-  if (process.env.REPLIT_DEPLOYMENT) {
-    console.warn('[agentsentinel] WARNING: running as a Replit deployment without DATABASE_URL. Watches will be lost on every redeploy or restart.');
+  console.log(`[agentsentinel] using SQLite file ${config.sqlitePath}. If the file is lost, each watch is rebuilt from its signed token on its next use.`);
+  if (!config.gatewaySecret && !config.tokenSecret) {
+    console.warn('[agentsentinel] WARNING: no GATEWAY_SECRET or TOKEN_SECRET, so watch tokens cannot be rebuilt after a restart.');
   }
 }
 

@@ -10,7 +10,8 @@ import { CONDITION_DESCRIPTIONS, conditionMetNow } from './conditions.js';
 import { TYPES } from './types/index.js';
 import { toXdcAddress } from './types/wallet_balance.js';
 import { hashToken } from './store.js';
-import { ValidationError, validateWatchBody, validateTokenBody, TOKEN_PATTERN, WATCH_EXAMPLES } from './validate.js';
+import { TOKEN_PATTERN, readSignedToken } from './tokens.js';
+import { ValidationError, validateWatchBody, validateTokenBody, WATCH_EXAMPLES } from './validate.js';
 import { createRateLimiter } from './ratelimit.js';
 import { renderStats } from './stats.js';
 
@@ -65,7 +66,7 @@ function eventOut(e) {
   };
 }
 
-export function createApp({ config, store, sampler, clock = Date.now, logger = console }) {
+export function createApp({ config, store, sampler, clock = Date.now, logger = console, tokenKey = null }) {
   const app = express();
   const limiter = createRateLimiter({ clock });
   const diagnostics = {
@@ -73,6 +74,7 @@ export function createApp({ config, store, sampler, clock = Date.now, logger = c
     gatewayRequests: 0,
     wrongBearerRequests: 0,
     directPaidRejected: 0,
+    restoredWatches: 0,
   };
   const intervalSeconds = Math.round(config.sampleIntervalMs / 1000);
 
@@ -133,6 +135,19 @@ export function createApp({ config, store, sampler, clock = Date.now, logger = c
     return true;
   }
 
+  // A signed token whose watch is missing from storage (data lost in a restart or
+  // redeploy) is rebuilt from the definition inside the token.
+  async function restoreIfMissing(token, hash) {
+    if (!tokenKey || !token.includes('.')) return;
+    if (await store.findByTokenHash(hash)) return;
+    const spec = readSignedToken(tokenKey, token);
+    const type = spec && TYPES[spec.type];
+    if (!type || !type.conditions.includes(spec.cond)) return;
+    if (type.requiresAddress && !spec.address) return;
+    await store.restoreWatch(spec, hash, type.sourceKey(spec));
+    diagnostics.restoredWatches += 1;
+  }
+
   // Runs fn once per distinct token, in request order. Duplicates and malformed tokens
   // are reported per item.
   async function perToken(tokens, fn) {
@@ -149,7 +164,9 @@ export function createApp({ config, store, sampler, clock = Date.now, logger = c
         results.push({ index, status: 'unknown_token' });
         continue;
       }
-      results.push({ index, ...(await fn(hashToken(t))) });
+      const hash = hashToken(t);
+      await restoreIfMissing(t, hash);
+      results.push({ index, ...(await fn(hash)) });
     }
     return results;
   }
@@ -255,6 +272,7 @@ export function createApp({ config, store, sampler, clock = Date.now, logger = c
         out.change_percent_from_reference = rep.change_percent === null ? null : Number(rep.change_percent.toFixed(4));
       }
       out.previous_check_time = iso(rep.previous_check_at);
+      if (w.restored_at) out.history_reset_at = iso(w.restored_at);
       out.seconds_since_last_check = Math.max(0, Math.round((rep.checked_at - since) / 1000));
       out.sample_interval_seconds = intervalSeconds;
       out.created_at = iso(w.created_at);
@@ -279,6 +297,7 @@ export function createApp({ config, store, sampler, clock = Date.now, logger = c
         ended_at: iso(w.ended_at),
         check_count: w.check_count,
         last_check_time: iso(w.last_check_at),
+        ...(w.restored_at ? { history_reset_at: iso(w.restored_at) } : {}),
       };
     });
     res.json({ result_count: results.length, results });
@@ -347,7 +366,10 @@ export function createApp({ config, store, sampler, clock = Date.now, logger = c
       sources,
       sampler: sampler.stats,
       diagnostics: {
-        database: store.db.kind === 'postgres' ? 'postgres' : 'sqlite (local file; not persistent on Replit deployments)',
+        database: store.db.kind === 'postgres'
+          ? 'postgres'
+          : `sqlite file ${config.sqlitePath} (a lost file is recovered watch by watch from signed tokens)`,
+        watches_restored_from_tokens_since_start: diagnostics.restoredWatches,
         gateway_auth: config.gatewaySecret ? 'enabled' : 'disabled (GATEWAY_SECRET not set)',
         gateway_requests_since_start: diagnostics.gatewayRequests,
         requests_with_wrong_bearer_since_start: diagnostics.wrongBearerRequests,
@@ -425,6 +447,7 @@ export function createApp({ config, store, sampler, clock = Date.now, logger = c
         sample_interval_seconds: 'seconds between background samples',
         status: 'active | cancelled | expired | unknown_token | duplicate_token_in_request',
         reported_triggers: 'POST /events lists triggers already reported by POST /check',
+        history_reset_at: 'present only when the watch was rebuilt from its token after a server data reset; triggers and samples before this time are not available',
       },
       sampling: {
         sample_interval_seconds: intervalSeconds,

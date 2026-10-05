@@ -38,7 +38,9 @@ async function insertEvent(q, watchId, sample, event, now) {
   );
 }
 
-export function createStore(db, { clock = Date.now, watchTtlMs = 30 * 24 * 3600 * 1000 } = {}) {
+// tokenFactory(watchRow) returns the token handed to the caller; the default is a random
+// token. The app passes a factory that signs the watch definition into the token.
+export function createStore(db, { clock = Date.now, watchTtlMs = 30 * 24 * 3600 * 1000, tokenFactory = () => newWatchToken() } = {}) {
   return {
     db,
 
@@ -92,11 +94,11 @@ export function createStore(db, { clock = Date.now, watchTtlMs = 30 * 24 * 3600 
     },
 
     async createWatch(params, { viaGateway = false } = {}) {
-      const now = clock();
-      const token = newWatchToken();
+      // Whole seconds, so a watch rebuilt from its token has identical timestamps.
+      const now = Math.floor(clock() / 1000) * 1000;
       const watch = {
         id: newWatchId(),
-        token_hash: hashToken(token),
+        token_hash: null,
         type: params.type,
         cond: params.condition,
         threshold: params.threshold ?? null,
@@ -109,6 +111,8 @@ export function createStore(db, { clock = Date.now, watchTtlMs = 30 * 24 * 3600 
         expires_at: now + watchTtlMs,
         via_gateway: viaGateway ? 1 : 0,
       };
+      const token = tokenFactory(watch);
+      watch.token_hash = hashToken(token);
       return db.tx(async (q) => {
         const baseline = await latestSample(q, watch.source_key);
         const { state, event } = initialState(watch, baseline);
@@ -122,6 +126,43 @@ export function createStore(db, { clock = Date.now, watchTtlMs = 30 * 24 * 3600 
         // the latest sample at that moment.
         if (event) await insertEvent(q, watch.id, { ...baseline, ts: now }, event, now);
         return { watch: row, token, baseline };
+      });
+    },
+
+    // Rebuilds a watch from the definition carried in its signed token, after stored
+    // data was lost. Monitoring restarts from the latest sample; the trigger history
+    // from before the loss is gone, which restored_at reports.
+    async restoreWatch(spec, tokenHash, sourceKey) {
+      const now = clock();
+      const watch = {
+        id: spec.id,
+        token_hash: tokenHash,
+        type: spec.type,
+        cond: spec.cond,
+        threshold: spec.threshold,
+        percent: spec.percent,
+        direction: spec.direction,
+        address: spec.address,
+        source_key: sourceKey,
+        status: spec.expires_at <= now ? 'expired' : 'active',
+        created_at: spec.created_at,
+        expires_at: spec.expires_at,
+        ended_at: spec.expires_at <= now ? spec.expires_at : null,
+        restored_at: now,
+        via_gateway: 0,
+      };
+      return db.tx(async (q) => {
+        const baseline = await latestSample(q, sourceKey);
+        // No met_at_creation trigger on restore: condition_met_now already reports a held condition.
+        const { state } = initialState(watch, baseline);
+        const row = { ...watch, ...state, trigger_count: 0 };
+        const cols = Object.keys(row);
+        await q.query(
+          `INSERT INTO watches (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')}) ON CONFLICT DO NOTHING`,
+          cols.map((c) => row[c]),
+        );
+        const [stored] = await q.query('SELECT * FROM watches WHERE token_hash = ?', [tokenHash]);
+        return stored || null;
       });
     },
 

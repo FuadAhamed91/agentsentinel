@@ -24,7 +24,6 @@ export const WATCH_EXAMPLES = [
 const WATCH_FIELDS = ['type', 'condition', 'threshold', 'percent', 'direction', 'address'];
 const THRESHOLD_CONDITIONS = new Set(['above', 'below', 'crosses_above', 'crosses_below']);
 const DIRECTIONS = ['any', 'up', 'down'];
-export const TOKEN_PATTERN = /^wt_[A-Za-z0-9_-]{43}$/;
 
 function isPlainObject(v) {
   return v !== null && typeof v === 'object' && !Array.isArray(v);

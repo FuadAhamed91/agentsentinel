@@ -207,7 +207,19 @@ A `/check` result for a watch whose price went above 0.08 and came back (abridge
 - **`/events` and `/watches` are free**, so they never reveal triggers that `/check`
   has not reported yet. Otherwise the paid check could be skipped.
 - **Watches** expire after 30 days (`WATCH_TTL_DAYS`).
+- **Self-restoring tokens:** a watch token is `wt_<definition>.<signature>`, signed with a
+  key derived from `GATEWAY_SECRET` (or `TOKEN_SECRET`). If stored data is lost, for
+  example a fresh disk after a restart or redeploy, the watch is rebuilt from its token
+  on its next use and reports `history_reset_at`; only triggers from before the reset
+  are lost. Altered tokens, or tokens signed with another key, are rejected.
 - **Tables:** `watches`, `samples`, `checks`, `events`, plus a one-row `sampler_lease`.
+
+### Running on Replit without a paid database
+
+Replit's production Postgres is billed per active hour, and the 15 second sampler keeps
+it active around the clock (about $3.84/day). To run on the Reserved VM alone (about
+$0.50/day), add the configuration `SENTINEL_DB=sqlite` to the published app. Data then
+lives in a SQLite file on the VM, and the signed tokens above cover a lost file.
 
 ## Files
 

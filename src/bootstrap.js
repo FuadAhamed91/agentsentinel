@@ -4,10 +4,16 @@ import { openDatabase } from './db/index.js';
 import { createStore } from './store.js';
 import { createSampler } from './sampler.js';
 import { createApp } from './app.js';
+import { tokenKey, createSignedToken } from './tokens.js';
 
 export async function startServer({ config, sources, clock = Date.now, logger = console, startSampler = true }) {
   const db = await openDatabase(config);
-  const store = createStore(db, { clock, watchTtlMs: config.watchTtlMs });
+  const key = tokenKey(config);
+  const store = createStore(db, {
+    clock,
+    watchTtlMs: config.watchTtlMs,
+    tokenFactory: (watch) => createSignedToken(key, watch),
+  });
   await store.init();
   const sampler = createSampler({
     store,
@@ -18,7 +24,7 @@ export async function startServer({ config, sources, clock = Date.now, logger = 
     retentionMs: config.sampleRetentionMs,
     logger,
   });
-  const app = createApp({ config, store, sampler, clock, logger });
+  const app = createApp({ config, store, sampler, clock, logger, tokenKey: key });
   const server = await new Promise((resolve, reject) => {
     const s = app.listen(config.port, () => resolve(s));
     s.on('error', reject);

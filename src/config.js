@@ -23,13 +23,24 @@ function list(value, fallback) {
 
 export function loadConfig(env = process.env) {
   const sampleIntervalSeconds = num(env.SAMPLE_INTERVAL_SECONDS, 15, { min: 1, max: 3600 });
+  const dbMode = (env.SENTINEL_DB || '').toLowerCase();
+  if (dbMode && dbMode !== 'sqlite' && dbMode !== 'postgres') {
+    throw new Error('SENTINEL_DB must be "sqlite", "postgres" or empty');
+  }
+  if (dbMode === 'postgres' && !env.DATABASE_URL) {
+    throw new Error('SENTINEL_DB=postgres needs DATABASE_URL');
+  }
   return {
     port: num(env.PORT, 8080, { min: 0, max: 65535 }),
-    databaseUrl: env.DATABASE_URL || '',
+    // SENTINEL_DB=sqlite ignores DATABASE_URL (for example the paid production
+    // database a host injects) and keeps data in the local SQLite file.
+    databaseUrl: dbMode === 'sqlite' ? '' : env.DATABASE_URL || '',
     sqlitePath: env.SQLITE_PATH || './data/agentsentinel.sqlite',
 
     // Shared secret the XDC AI gateway sends as "Authorization: Bearer <secret>".
     gatewaySecret: env.GATEWAY_SECRET || '',
+    // Key that signs watch tokens; derived from GATEWAY_SECRET when not set.
+    tokenSecret: env.TOKEN_SECRET || '',
     // Optional: public gateway base URL (https://api.xdcai.tech/x402/connect/gw_...), reported in 401 bodies.
     gatewayPublicUrl: (env.GATEWAY_PUBLIC_URL || '').replace(/\/+$/, ''),
     statsSecret: env.STATS_SECRET || '',
