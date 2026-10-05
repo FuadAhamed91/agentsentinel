@@ -52,6 +52,25 @@ export function createStore(db, { clock = Date.now, watchTtlMs = 30 * 24 * 3600 
       return latestSample(db, key);
     },
 
+    // High, low, count and earliest time of a series since a moment.
+    async seriesStats(key, since) {
+      const [r] = await db.query(
+        'SELECT MAX(value) AS high, MIN(value) AS low, COUNT(*) AS n, MIN(ts) AS first_ts FROM samples WHERE source_key = ? AND ts >= ?',
+        [key, since],
+      );
+      const n = Number(r.n);
+      return { high: n ? r.high : null, low: n ? r.low : null, count: n, firstTs: n ? Number(r.first_ts) : null };
+    },
+
+    // The latest sample taken at or before a moment, or null.
+    async sampleAtOrBefore(key, ts) {
+      const rows = await db.query(
+        'SELECT id, ts, value FROM samples WHERE source_key = ? AND ts <= ? ORDER BY ts DESC, id DESC LIMIT 1',
+        [key, ts],
+      );
+      return rows[0] || null;
+    },
+
     // Store one sample and evaluate every active watch that reads this series.
     async insertSampleAndEvaluate(key, ts, s) {
       const type = typeForSourceKey(key);

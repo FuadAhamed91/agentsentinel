@@ -17,19 +17,26 @@ export const SERVICE = {
 };
 
 // Order matters: rows with equal search score appear in catalog order,
-// so the paid routes come first.
+// so the paid routes come first, led by the one that needs no request body.
 export const ROUTES = [
+  {
+    method: 'GET',
+    path: '/xdc',
+    priceUSDC: '0.02',
+    capability:
+      'xdc.price.snapshot: current XDC/USD price and XDC gas price with 1h and 24h high, low and percent change from 15 second sampling; GET, no request body',
+  },
   {
     method: 'POST',
     path: '/watch',
-    priceUSDC: '0.02',
+    priceUSDC: '0.05',
     capability:
       'xdc.monitor.watch.create: persistent watch, monitor and alert on XDC/USD price, XDC gas price or XDC wallet balance with threshold triggers (above, below, crosses, percent change); returns watch_token and current value',
   },
   {
     method: 'POST',
     path: '/check',
-    priceUSDC: '0.01',
+    priceUSDC: '0.02',
     capability:
       'xdc.monitor.watch.check: report per watch since its last check: current price, gas or balance value, triggered flag, every alert trigger between checks with time and value, high, low, sample count',
   },

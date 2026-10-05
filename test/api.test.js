@@ -597,8 +597,9 @@ test('/info lists the catalog prices and contains no instruction text', () => wi
   const r = await s.get('/info', { gateway: false });
   assert.equal(r.status, 200);
   const prices = Object.fromEntries(r.json.routes.map((x) => [x.path, x.price_usdc]));
-  assert.equal(prices['/watch'], '0.02');
-  assert.equal(prices['/check'], '0.01');
+  assert.equal(prices['/xdc'], '0.02');
+  assert.equal(prices['/watch'], '0.05');
+  assert.equal(prices['/check'], '0.02');
   assert.equal(prices['/info'], '0');
   assert.deepEqual(Object.keys(r.json.watch_types).sort(), ['wallet_balance', 'xdc_gas', 'xdc_price']);
   const text = JSON.stringify(r.json).toLowerCase();

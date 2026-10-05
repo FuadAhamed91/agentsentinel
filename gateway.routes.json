@@ -1,0 +1,58 @@
+[
+  {
+    "method": "GET",
+    "path": "/xdc",
+    "priceUSDC": "0.02",
+    "capability": "xdc.price.snapshot: current XDC/USD price and XDC gas price with 1h and 24h high, low and percent change from 15 second sampling; GET, no request body",
+    "enabled": true
+  },
+  {
+    "method": "POST",
+    "path": "/watch",
+    "priceUSDC": "0.05",
+    "capability": "xdc.monitor.watch.create: persistent watch, monitor and alert on XDC/USD price, XDC gas price or XDC wallet balance with threshold triggers (above, below, crosses, percent change); returns watch_token and current value",
+    "enabled": true
+  },
+  {
+    "method": "POST",
+    "path": "/check",
+    "priceUSDC": "0.02",
+    "capability": "xdc.monitor.watch.check: report per watch since its last check: current price, gas or balance value, triggered flag, every alert trigger between checks with time and value, high, low, sample count",
+    "enabled": true
+  },
+  {
+    "method": "GET",
+    "path": "/info",
+    "priceUSDC": "0",
+    "capability": "xdc.monitor.info: free description of watch types, conditions, route costs and example request bodies",
+    "enabled": true
+  },
+  {
+    "method": "POST",
+    "path": "/watches",
+    "priceUSDC": "0",
+    "capability": "xdc.monitor.watches.status: free configuration and lifecycle status of watches by watch_token",
+    "enabled": true
+  },
+  {
+    "method": "POST",
+    "path": "/events",
+    "priceUSDC": "0",
+    "capability": "xdc.monitor.events.history: free history of triggers already reported by check",
+    "enabled": true
+  },
+  {
+    "method": "POST",
+    "path": "/cancel",
+    "priceUSDC": "0",
+    "capability": "xdc.monitor.watch.cancel: free cancellation of watches by watch_token",
+    "enabled": true
+  },
+  {
+    "method": "GET",
+    "path": "/health",
+    "priceUSDC": "0",
+    "capability": "xdc.monitor.health: free service health",
+    "enabled": true
+  }
+]

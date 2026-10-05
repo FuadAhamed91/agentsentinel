@@ -171,6 +171,16 @@ export function createApp({ config, store, sampler, clock = Date.now, logger = c
     return results;
   }
 
+  // Makes sure a recent value exists (first watch on a wallet, or right after startup).
+  // The wait is capped so a slow source cannot hold a paid request open; a fetch still
+  // running afterwards stores its sample when it completes.
+  async function ensureRecentSample(sourceKey) {
+    await Promise.race([
+      sampler.ensureSample(sourceKey).catch(() => null),
+      new Promise((resolve) => { setTimeout(resolve, config.createFetchWaitMs).unref?.(); }),
+    ]);
+  }
+
   function currentFields(w, sample, now) {
     const info = sampler.sourceInfo(w.source_key, sample, now);
     return {
@@ -219,23 +229,63 @@ export function createApp({ config, store, sampler, clock = Date.now, logger = c
         return res.status(503).json({ error: 'capacity', message: 'watched wallet limit reached' });
       }
     }
-    // Make sure a recent value exists (first watch on a wallet, or right after startup).
-    // The wait is capped so a slow source cannot hold the paid request open; a fetch
-    // still running afterwards stores its sample when it completes.
-    await Promise.race([
-      sampler.ensureSample(params.sourceKey).catch(() => null),
-      new Promise((resolve) => { setTimeout(resolve, config.createFetchWaitMs).unref?.(); }),
-    ]);
+    await ensureRecentSample(params.sourceKey);
     const { watch, token, baseline } = await store.createWatch(params, { viaGateway: req.viaGateway });
     // 200 rather than 201: the gateway settles on success, and 200 is the plainest success.
     res.status(200).json({
       ...watchConfig(watch),
+      ...(params.defaulted ? { default_watch: true } : {}),
       watch_token: token,
       status: 'active',
       created_at: iso(watch.created_at),
       expires_at: iso(watch.expires_at),
       ...currentFields(watch, baseline, now),
       condition_met_now: baseline ? conditionMetNow(watch, baseline.value) : null,
+      sample_interval_seconds: intervalSeconds,
+    });
+  };
+
+  // One-shot snapshot: current XDC/USD and gas, with 1h and 24h ranges from the stored samples.
+  handlers['/xdc'] = async (req, res) => {
+    await Promise.all([ensureRecentSample('xdc_price'), ensureRecentSample('xdc_gas')]);
+    const now = clock();
+    const H = 3600 * 1000;
+    const pct = (from, to) => (from && to !== null && to !== undefined && from.value !== 0
+      ? Number((((to - from.value) / from.value) * 100).toFixed(4))
+      : null);
+
+    const price = await store.latestSample('xdc_price');
+    const gas = await store.latestSample('xdc_gas');
+    const [p1h, p24h, g24h, priceHourAgo, priceDayAgo] = await Promise.all([
+      store.seriesStats('xdc_price', now - H),
+      store.seriesStats('xdc_price', now - 24 * H),
+      store.seriesStats('xdc_gas', now - 24 * H),
+      store.sampleAtOrBefore('xdc_price', now - H),
+      store.sampleAtOrBefore('xdc_price', now - 24 * H),
+    ]);
+    const priceInfo = sampler.sourceInfo('xdc_price', price, now);
+    const gasInfo = sampler.sourceInfo('xdc_gas', gas, now);
+    const current = price ? price.value : null;
+
+    res.json({
+      time: iso(now),
+      xdc_usd: current,
+      xdc_usd_time: price ? iso(price.ts) : null,
+      xdc_usd_source: price ? price.origin : null,
+      xdc_usd_stale: priceInfo.stale,
+      xdc_usd_change_1h_percent: pct(priceHourAgo, current),
+      xdc_usd_high_1h: p1h.high,
+      xdc_usd_low_1h: p1h.low,
+      xdc_usd_change_24h_percent: pct(priceDayAgo, current),
+      xdc_usd_high_24h: p24h.high,
+      xdc_usd_low_24h: p24h.low,
+      xdc_usd_samples_24h: p24h.count,
+      xdc_usd_history_from: iso(p24h.firstTs),
+      gas_price_gwei: gas ? gas.value : null,
+      gas_price_time: gas ? iso(gas.ts) : null,
+      gas_price_stale: gasInfo.stale,
+      gas_price_high_24h_gwei: g24h.high,
+      gas_price_low_24h_gwei: g24h.low,
       sample_interval_seconds: intervalSeconds,
     });
   };
@@ -422,9 +472,11 @@ export function createApp({ config, store, sampler, clock = Date.now, logger = c
         percent: 'number > 0 and <= 1000; used by changes_by_percent',
         direction: 'any | up | down; optional for changes_by_percent; default any',
         address: 'wallet_balance only; "xdc" or "0x" followed by 40 hex characters',
+        empty_watch_body: 'POST /watch with no body or {} creates the default watch: xdc_price changes_by_percent, percent 1, direction any',
         watch_tokens: 'array of watch tokens (strings starting with wt_); /check, /watches, /events and /cancel also accept a single watch_token string',
       },
       request_examples: {
+        'GET /xdc': 'no request body',
         'POST /watch': WATCH_EXAMPLES,
         'POST /check': { watch_tokens: ['wt_...', 'wt_...'] },
         'POST /watches': { watch_tokens: ['wt_...'] },
@@ -448,6 +500,9 @@ export function createApp({ config, store, sampler, clock = Date.now, logger = c
         status: 'active | cancelled | expired | unknown_token | duplicate_token_in_request',
         reported_triggers: 'POST /events lists triggers already reported by POST /check',
         history_reset_at: 'present only when the watch was rebuilt from its token after a server data reset; triggers and samples before this time are not available',
+        default_watch: 'true when POST /watch had no body and the default watch was created',
+        xdc_usd_change_1h_percent: 'GET /xdc: percent change from the sample one hour earlier; null when the stored history is shorter',
+        xdc_usd_history_from: 'GET /xdc: time of the oldest sample used for the 24h figures',
       },
       sampling: {
         sample_interval_seconds: intervalSeconds,

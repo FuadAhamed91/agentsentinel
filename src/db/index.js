@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS samples (
   origin TEXT
 );
 CREATE INDEX IF NOT EXISTS samples_source_id ON samples (source_key, id);
+CREATE INDEX IF NOT EXISTS samples_source_ts ON samples (source_key, ts);
 CREATE INDEX IF NOT EXISTS samples_ts ON samples (ts);
 
 CREATE TABLE IF NOT EXISTS events (

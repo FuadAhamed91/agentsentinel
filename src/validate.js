@@ -36,7 +36,15 @@ function toNumber(v, field) {
   throw new ValidationError(`${field} must be a number`, { field });
 }
 
+// Created when POST /watch arrives with no body or an empty object.
+export const DEFAULT_WATCH = { type: 'xdc_price', condition: 'changes_by_percent', percent: 1, direction: 'any' };
+
 export function validateWatchBody(body) {
+  if (body === undefined || body === null || (isPlainObject(body) && Object.keys(body).length === 0)) {
+    const out = { ...DEFAULT_WATCH, defaulted: true };
+    out.sourceKey = TYPES[out.type].sourceKey(out);
+    return out;
+  }
   if (!isPlainObject(body)) {
     throw new ValidationError('request body must be a JSON object', { details: { examples: WATCH_EXAMPLES } });
   }

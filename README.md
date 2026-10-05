@@ -19,8 +19,9 @@ XDC AI marketplace. Settlement payTo in the 402 challenge:
 
 | Route | Price (USDC) | Purpose |
 |---|---|---|
-| `POST /watch` | 0.02 | Create a watch. Returns `watch_id` and a secret `watch_token`. |
-| `POST /check` | 0.01 | `{ "watch_tokens": [...] }` (1 to 50). Report for each watch since its last check. |
+| `GET /xdc` | 0.02 | Snapshot, no body: XDC/USD and gas now, 1h and 24h high/low/change. |
+| `POST /watch` | 0.05 | Create a watch. Returns `watch_id` and a secret `watch_token`. An empty body creates the default watch (XDC/USD moves 1%). |
+| `POST /check` | 0.02 | `{ "watch_tokens": [...] }` (1 to 50). Report for each watch since its last check. |
 | `GET /info` | free | Watch types, conditions, prices, example bodies, field definitions. |
 | `POST /watches` | free | Configuration and lifecycle status of each watch. |
 | `POST /events` | free | Triggers already reported by `/check`. |
@@ -147,7 +148,7 @@ AUTH="Authorization: Bearer $GATEWAY_SECRET"
 curl -s $BASE/info
 curl -s $BASE/health
 
-# create watches (paid: 0.02 each through the gateway)
+# create watches (paid: 0.05 each through the gateway)
 curl -s -X POST $BASE/watch -H "$AUTH" -H 'content-type: application/json' \
   -d '{"type":"xdc_price","condition":"above","threshold":0.08}'
 curl -s -X POST $BASE/watch -H "$AUTH" -H 'content-type: application/json' \
@@ -157,7 +158,7 @@ curl -s -X POST $BASE/watch -H "$AUTH" -H 'content-type: application/json' \
 curl -s -X POST $BASE/watch -H "$AUTH" -H 'content-type: application/json' \
   -d '{"type":"wallet_balance","address":"xdc0000000000000000000000000000000000000088","condition":"changes"}'
 
-# check one or many (paid: 0.01 per request)
+# check one or many (paid: 0.02 per request)
 curl -s -X POST $BASE/check -H "$AUTH" -H 'content-type: application/json' \
   -d '{"watch_tokens":["wt_...","wt_..."]}'
 
