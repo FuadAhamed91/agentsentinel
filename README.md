@@ -10,6 +10,13 @@ The service is a plain HTTPS JSON API. The XDC AI Gateway sits in front of it, s
 agent the 402 challenge, verifies the payment, forwards the call, and settles on-chain
 only when this server answers 2xx. There is no payment code here.
 
+**Live (since 2026-10-05 16:12 UTC):**
+gateway service `gw_51b0e7ef6347a4a96d`, agent URL
+`https://api.xdcai.tech/x402/connect/gw_51b0e7ef6347a4a96d/<route>`, upstream
+`https://agentsentinel.replit.app` (Replit Reserved VM, SQLite mode), public in the
+XDC AI marketplace. Settlement payTo in the 402 challenge:
+`0xad023090B3411Adb59D45f6c1f6F1147BF3603AA` (gateway contract for this account).
+
 | Route | Price (USDC) | Purpose |
 |---|---|---|
 | `POST /watch` | 0.02 | Create a watch. Returns `watch_id` and a secret `watch_token`. |
